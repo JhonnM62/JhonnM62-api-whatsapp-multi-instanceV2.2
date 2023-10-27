@@ -50,7 +50,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
                     );
                 } else {
                     const rutaCorregida =
-                        "./" + convertedAudioPath.replace(/\\/g, "/");
+                        "../" + convertedAudioPath.replace(/\\/g, "/");
                     // Pasa la ruta del archivo de audio convertido a la vista
                     res.render("index", { imagePath: rutaCorregida });
                 }
