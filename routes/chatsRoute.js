@@ -1,76 +1,94 @@
-import { Router } from 'express'
-import { body, query } from 'express-validator'
-import requestValidator from './../middlewares/requestValidator.js'
-import sessionValidator from './../middlewares/sessionValidator.js'
-import * as controller from './../controllers/chatsController.js'
-import getMessages from './../controllers/getMessages.js'
+import { Router } from "express";
+import { body, query } from "express-validator";
+import requestValidator from "./../middlewares/requestValidator.js";
+import sessionValidator from "./../middlewares/sessionValidator.js";
+import * as controller from "./../controllers/chatsController.js";
+import getMessages from "./../controllers/getMessages.js";
 
-const router = Router()
+const router = Router();
 
-router.get('/', query('id').notEmpty(), requestValidator, sessionValidator, controller.getList)
-
-router.get('/:jid', query('id').notEmpty(), requestValidator, sessionValidator, getMessages)
-
-router.post(
-    '/delete',
-    query('id').notEmpty(),
-    body('receiver').notEmpty(),
-    body('message').notEmpty(),
+router.get(
+    "/",
+    query("id").notEmpty(),
     requestValidator,
     sessionValidator,
-    controller.deleteChat
-)
+    controller.getList,
+);
 
-router.post(
-    '/send',
-    query('id').notEmpty(),
-    body('receiver').notEmpty(),
-    body('message').notEmpty(),
+router.get(
+    "/:jid",
+    query("id").notEmpty(),
     requestValidator,
     sessionValidator,
-    controller.send
-)
-
-router.post('/send-bulk', query('id').notEmpty(), requestValidator, sessionValidator, controller.sendBulk)
+    getMessages,
+);
 
 router.post(
-    '/forward',
-    query('id').notEmpty(),
-    body('forward').notEmpty(),
-    body('receiver').notEmpty(),
-    body('isGroup').notEmpty(),
+    "/delete",
+    query("id").notEmpty(),
+    body("receiver").notEmpty(),
+    body("message").notEmpty(),
     requestValidator,
     sessionValidator,
-    controller.forward
-)
+    controller.deleteChat,
+);
 
 router.post(
-    '/read',
-    query('id').notEmpty(),
-    body('keys').notEmpty(),
+    "/send",
+    query("id").notEmpty(),
+    body("receiver").notEmpty(),
+    body("message").notEmpty(),
     requestValidator,
     sessionValidator,
-    controller.read
-)
+    controller.send,
+);
 
 router.post(
-    '/send-presence',
-    query('id').notEmpty(),
-    body('receiver').notEmpty(),
-    body('presence').notEmpty(),
+    "/send-bulk",
+    query("id").notEmpty(),
     requestValidator,
     sessionValidator,
-    controller.sendPresence
-)
+    controller.sendBulk,
+);
 
 router.post(
-    '/download-media',
-    query('id').notEmpty(),
-    body('remoteJid').notEmpty(),
-    body('messageId').notEmpty(),
+    "/forward",
+    query("id").notEmpty(),
+    body("forward").notEmpty(),
+    body("receiver").notEmpty(),
+    body("isGroup").notEmpty(),
     requestValidator,
     sessionValidator,
-    controller.downloadMedia
-)
+    controller.forward,
+);
 
-export default router
+router.post(
+    "/read",
+    query("id").notEmpty(),
+    body("keys").notEmpty(),
+    requestValidator,
+    sessionValidator,
+    controller.read,
+);
+
+router.post(
+    "/send-presence",
+    query("id").notEmpty(),
+    body("receiver").notEmpty(),
+    body("presence").notEmpty(),
+    requestValidator,
+    sessionValidator,
+    controller.sendPresence,
+);
+
+router.post(
+    "/download-media",
+    query("id").notEmpty(),
+    body("remoteJid").notEmpty(),
+    body("messageId").notEmpty(),
+    requestValidator,
+    sessionValidator,
+    controller.downloadMedia,
+);
+
+export default router;
