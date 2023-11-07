@@ -3,7 +3,7 @@ FROM node:18-bullseye as bot
 WORKDIR /app
 
 # Copia los archivos de tu proyecto al contenedor
-COPY package.json package-lock.json ./
+COPY package*.json ./
 
 # Instala las dependencias del proyecto
 RUN npm install
