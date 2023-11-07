@@ -9,6 +9,13 @@ import { dirname } from "path";
 import { fileURLToPath } from "url";
 import path from "path"; // Importa el módulo 'path'
 
+//login
+
+// Routes
+import "./login/src/database.js";
+import usersRoutes from "./login/src/routes/auth.routes.js";
+import authRoutes from "./login/src/routes/auth.routes.js";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -26,7 +33,11 @@ app.set("views", path.join(__dirname, "views"));
 app.use(cors());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use("/api/users", usersRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/", routes);
+
+// Routes
 
 const listenerCallback = () => {
     init();

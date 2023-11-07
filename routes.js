@@ -4,14 +4,15 @@ import chatsRoute from "./routes/chatsRoute.js";
 import groupsRoute from "./routes/groupsRoute.js";
 import miscRoute from "./routes/miscRoute.js";
 import response from "./response.js";
-import page from "./routes/page.js";
+import page from "./routes/pageRoute.js";
+import { verifyToken } from "./login/src/middlewares/authJwt.js";
 
 const router = Router();
 
-router.use("/sessions", sessionsRoute);
-router.use("/chats", chatsRoute);
-router.use("/groups", groupsRoute);
-router.use("/misc", miscRoute);
+router.use("/sessions", verifyToken, sessionsRoute);
+router.use("/chats", verifyToken, chatsRoute);
+router.use("/groups", verifyToken, groupsRoute);
+router.use("/misc", verifyToken, miscRoute);
 router.use("/", page);
 
 router.all("*", (req, res) => {
