@@ -13,6 +13,7 @@ router.use("/sessions", verifyToken, sessionsRoute);
 router.use("/chats", verifyToken, chatsRoute);
 router.use("/groups", verifyToken, groupsRoute);
 router.use("/misc", verifyToken, miscRoute);
+
 router.use("/", page);
 
 router.all("*", (req, res) => {

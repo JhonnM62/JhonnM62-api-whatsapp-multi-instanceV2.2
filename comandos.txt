@@ -1,0 +1,4 @@
+docker run -d --env-file=./.env -p 8001:8001 mi-app2
+
+docker update --restart=always 0b9cb1a7d9d1
+
