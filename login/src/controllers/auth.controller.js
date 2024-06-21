@@ -57,21 +57,28 @@ export const deleteUsernameHandler = async (req, res, next) => {
 
 export const signupHandler = async (req, res) => {
     try {
-        const { nombrebot, email, password } = req.body;
+        const { nombrebot, email, password, duracionMembresiaDias } = req.body;
+
+        // Calcular fechas de inicio y fin de la membresía
+        const fechaInicio = new Date();
+        const fechaFin = addDays(fechaInicio, duracionMembresiaDias);
 
         // Crear un nuevo objeto de usuario
         const newUser = new User({
             nombrebot,
             email,
             password,
+            duracionMembresiaDias,
+            fechaInicio,
+            fechaFin,
         });
 
         // Guardar el objeto de usuario en MongoDB
         const savedUser = await newUser.save();
 
-        // Crear un token
+        // Crear un token con la duración de la membresía en días
         const token = jwt.sign({ id: savedUser._id }, SECRET, {
-            expiresIn: 2592000, // 30 días
+            expiresIn: duracionMembresiaDias * 24 * 60 * 60, // Duración en segundos
         });
 
         // Asignar el token al usuario y guardar nuevamente en la base de datos
@@ -112,5 +119,94 @@ export const signinHandler = async (req, res) => {
         res.json({ token: userFound.token });
     } catch (error) {
         console.log(error);
+    }
+};
+
+// Función para agregar días a una fecha
+const addDays = (date, days) => {
+    if (isNaN(days) || !(date instanceof Date) || isNaN(date.getTime())) {
+        throw new Error("Invalid input for addDays function");
+    }
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    console.log(
+        `addDays - Fecha Inicio: ${date.toISOString()}, Fecha Fin: ${result.toISOString()}`,
+    );
+    return result;
+};
+
+export const renewMembership = async (req, res) => {
+    try {
+        const { token, duracionRenovacionDias } = req.body;
+
+        // Verificar que duracionRenovacionDias sea un número
+        const duracionDias = parseInt(duracionRenovacionDias, 10);
+        if (isNaN(duracionDias) || duracionDias <= 0) {
+            return res
+                .status(400)
+                .json({ message: "Invalid duration provided" });
+        }
+
+        // Decodificar el token sin verificar su expiración
+        let decoded;
+        try {
+            decoded = jwt.decode(token);
+        } catch (error) {
+            return res.status(401).json({ message: "Invalid token" });
+        }
+
+        if (!decoded || !decoded.id) {
+            return res.status(401).json({ message: "Invalid token" });
+        }
+
+        // Buscar el usuario en la base de datos por el ID del token
+        const user = await User.findById(decoded.id);
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Convertir fechaFin de string a objeto Date si no lo es
+        console.log(`renewMembership - fechaFin (original): ${user.fechaFin}`);
+        let fechaFin = new Date(user.fechaFin);
+        if (isNaN(fechaFin.getTime())) {
+            return res.status(400).json({ message: "Invalid fechaFin format" });
+        }
+
+        // Usar la fecha actual si la fecha de expiración actual es mayor que la fecha actual
+        const fechaActual = new Date();
+        if (fechaFin < fechaActual) {
+            fechaFin = fechaActual;
+        }
+
+        console.log(
+            `renewMembership - fechaFin (Date object): ${fechaFin.toISOString()}`,
+        );
+
+        // Calcular nueva fecha de finalización
+        const nuevaFechaFin = addDays(fechaFin, duracionDias);
+        console.log(
+            `renewMembership - nuevaFechaFin: ${nuevaFechaFin.toISOString()}`,
+        );
+
+        // Actualizar la fecha de finalización en la base de datos del usuario
+        user.fechaFin = nuevaFechaFin;
+        await user.save();
+
+        // Generar un nuevo token con la nueva duración desde la fecha de expiración actual
+        const nuevoToken = jwt.sign({ id: user._id }, SECRET, {
+            expiresIn: Math.floor(
+                (nuevaFechaFin.getTime() - Date.now()) / 1000,
+            ), // Duración en segundos
+        });
+
+        return res.status(200).json({
+            token: nuevoToken,
+            duracionMembresiaDias: duracionDias, // Ajustamos la respuesta
+            fechaInicio: user.fechaInicio,
+            fechaFin: user.fechaFin.toISOString(), // Convertir fechaFin a formato ISO 8601
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Internal Server Error" });
     }
 };

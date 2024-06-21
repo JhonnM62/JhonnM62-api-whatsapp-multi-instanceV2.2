@@ -23,6 +23,10 @@ const convertAudio = async (filePath = null, outputFormat = "opus") => {
             codec: "libopus",
             ext: "opus",
         },
+        mpeg: {
+            codec: "mp2", // Asumiendo que el códec para MPEG es mp2
+            ext: "mpeg",
+        },
     };
 
     if (!formats[outputFormat]) {

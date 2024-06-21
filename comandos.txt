@@ -1,4 +1,9 @@
+docker build . -t mi-app2
 docker run -d --env-file=./.env -p 8001:8001 mi-app2
-
+docker exec -it 0b9cb1a7d9d1 /bin/bash
 docker update --restart=always 0b9cb1a7d9d1
 
+token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1NTY3MTlkYzAyYWI4ODU4MTRjOWVkNyIsImlhdCI6MTcwMDE2Mzk5NywiZXhwIjoxNzAyNzU1OTk3fQ.DzZc9NL7PjjvSi397vaZqyDZYWF3-93w5H22er7kvnw
+
+apt-get update
+apt-get install nano
