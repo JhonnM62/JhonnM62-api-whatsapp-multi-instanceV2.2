@@ -1,6 +1,6 @@
-import { rmSync, readdir, existsSync } from 'fs'
-import { join } from 'path'
-import pino from 'pino'
+import { rmSync, readdir, existsSync } from "fs";
+import { join } from "path";
+import pino from "pino";
 import makeWASocket, {
     useMultiFileAuthState,
     makeInMemoryStore,
@@ -10,50 +10,50 @@ import makeWASocket, {
     downloadMediaMessage,
     getAggregateVotesInPollMessage,
     fetchLatestBaileysVersion,
-} from '@whiskeysockets/baileys'
+} from "@whiskeysockets/baileys";
 
-import proto from '@whiskeysockets/baileys'
+import proto from "@whiskeysockets/baileys";
 
-import { toDataURL } from 'qrcode'
-import __dirname from './dirname.js'
-import response from './response.js'
-import { downloadImage } from './utils/download.js'
-import axios from 'axios'
-import NodeCache from 'node-cache'
+import { toDataURL } from "qrcode";
+import __dirname from "./dirname.js";
+import response from "./response.js";
+import { downloadImage } from "./utils/download.js";
+import axios from "axios";
+import NodeCache from "node-cache";
 
-const msgRetryCounterCache = new NodeCache()
+const msgRetryCounterCache = new NodeCache();
 
-const sessions = new Map()
-const retries = new Map()
+const sessions = new Map();
+const retries = new Map();
 
-const sessionsDir = (sessionId = '') => {
-    return join(__dirname, 'sessions', sessionId ? sessionId : '')
-}
+const sessionsDir = (sessionId = "") => {
+    return join(__dirname, "sessions", sessionId ? sessionId : "");
+};
 
 const isSessionExists = (sessionId) => {
-    return sessions.has(sessionId)
-}
+    return sessions.has(sessionId);
+};
 
 const isSessionConnected = (sessionId) => {
-    return sessions.get(sessionId)?.ws?.socket?.readyState === 1
-}
+    return sessions.get(sessionId)?.ws?.socket?.readyState === 1;
+};
 
 const shouldReconnect = (sessionId) => {
-    const maxRetries = parseInt(process.env.MAX_RETRIES ?? 0)
-    let attempts = retries.get(sessionId) ?? 0
+    const maxRetries = parseInt(process.env.MAX_RETRIES ?? 0);
+    let attempts = retries.get(sessionId) ?? 0;
 
     // MaxRetries = maxRetries < 1 ? 1 : maxRetries
     if (attempts < maxRetries || maxRetries === -1) {
-        ++attempts
+        ++attempts;
 
-        console.log('Reconnecting...', { attempts, sessionId })
-        retries.set(sessionId, attempts)
+        console.log("Reconnecting...", { attempts, sessionId });
+        retries.set(sessionId, attempts);
 
-        return true
+        return true;
     }
 
-    return false
-}
+    return false;
+};
 
 const webhook = async (instance, type, data) => {
     if (process.env.APP_WEBHOOK_URL) {
@@ -64,35 +64,45 @@ const webhook = async (instance, type, data) => {
                 data,
             })
             .then((success) => {
-                return success
+                return success;
             })
             .catch((error) => {
-                return error
-            })
+                return error;
+            });
     }
-}
+};
 
-const createSession = async (sessionId, res = null, options = { usePairingCode: false, phoneNumber: '' }) => {
-    const sessionFile = 'md_' + sessionId
+const createSession = async (
+    sessionId,
+    res = null,
+    options = { usePairingCode: false, phoneNumber: "" },
+) => {
+    const sessionFile = "md_" + sessionId;
 
-    const logger = pino({ level: 'silent' })
-    const store = makeInMemoryStore({ logger })
+    const logger = pino({ level: "silent" });
+    const store = makeInMemoryStore({ logger });
 
-    const { state, saveCreds } = await useMultiFileAuthState(sessionsDir(sessionFile))
+    const { state, saveCreds } = await useMultiFileAuthState(
+        sessionsDir(sessionFile),
+    );
 
     // Fetch latest version of WA Web
-    const { version, isLatest } = await fetchLatestBaileysVersion()
-    console.log(`using WA v${version.join('.')}, isLatest: ${isLatest}`)
+    const { version, isLatest } = await fetchLatestBaileysVersion();
+    console.log(`using WA v${version.join(".")}, isLatest: ${isLatest}`);
     // Load store
-    store?.readFromFile(sessionsDir(sessionFile) + '/baileys_store_multi.json')
+    store?.readFromFile(sessionsDir(sessionFile) + "/baileys_store_multi.json");
 
     // Save every 10s
     setInterval(() => {
         // Check exist file sessionsDir(sessionFile) + '/baileys_store_multi.json'
-        if (existsSync(sessionsDir(sessionFile) + '/baileys_store_multi.json')) {
-            store?.writeToFile(sessionsDir(sessionFile) + '/baileys_store_multi.json')
+        if (
+            existsSync(sessionsDir(sessionFile) + "/baileys_store_multi.json")
+        ) {
+            store?.writeToFile(
+                sessionsDir(sessionFile) + "/baileys_store_multi.json",
+            );
         }
-    }, 10000)
+    }, 10000);
 
     /**
      * @type {import('@whiskeysockets/baileys').AnyWASocket}
@@ -108,334 +118,362 @@ const createSession = async (sessionId, res = null, options = { usePairingCode: 
         logger,
         msgRetryCounterCache,
         generateHighQualityLinkPreview: true,
-        browser: ['Chrome (Linux)', '', ''],
+        browser: ["Ubuntu", "Chrome", "20.0.04"],
         getMessage,
-    })
-    store?.bind(wa.ev)
+    });
+    store?.bind(wa.ev);
 
-    sessions.set(sessionId, { ...wa, store })
+    sessions.set(sessionId, { ...wa, store });
 
     if (options.usePairingCode && !wa.authState.creds.registered) {
         if (!wa.authState.creds.account) {
             await wa.waitForConnectionUpdate((update) => {
-                return Boolean(update.qr)
-            })
-            const code = await wa.requestPairingCode(options.phoneNumber)
+                return Boolean(update.qr);
+            });
+            const code = await wa.requestPairingCode(options.phoneNumber);
             if (res && !res.headersSent && code !== undefined) {
-                response(res, 200, true, 'Verify on your phone and enter the provided code.', { code })
+                response(
+                    res,
+                    200,
+                    true,
+                    "Verify on your phone and enter the provided code.",
+                    { code },
+                );
             } else {
-                response(res, 500, false, 'Unable to create session.')
+                response(res, 500, false, "Unable to create session.");
             }
         }
     }
 
-    wa.ev.on('creds.update', saveCreds)
+    wa.ev.on("creds.update", saveCreds);
 
-    wa.ev.on('chats.set', ({ chats }) => {
-        console.log('chats.set', chats)
-    })
+    wa.ev.on("chats.set", ({ chats }) => {
+        console.log("chats.set", chats);
+    });
 
     // Automatically read incoming messages, uncomment below codes to enable this behaviour
-    wa.ev.on('messages.upsert', async (m) => {
+    wa.ev.on("messages.upsert", async (m) => {
         const messages = m.messages.filter((m) => {
-            return m.key.fromMe === false
-        })
+            return m.key.fromMe === false;
+        });
         if (messages.length > 0) {
-            webhook(sessionId, 'messages/upsert', messages)
+            webhook(sessionId, "messages/upsert", messages);
         }
-    })
+    });
 
-    wa.ev.on('messages.update', async (m) => {
-        for (const { key, messageTimestamp, pushName, broadcast, update } of m) {
+    wa.ev.on("messages.update", async (m) => {
+        for (const {
+            key,
+            messageTimestamp,
+            pushName,
+            broadcast,
+            update,
+        } of m) {
             if (update.pollUpdates) {
-                const pollCreation = await getMessage(key)
+                const pollCreation = await getMessage(key);
                 if (pollCreation) {
                     const pollMessage = await getAggregateVotesInPollMessage({
                         message: pollCreation,
                         pollUpdates: update.pollUpdates,
-                    })
-                    update.pollUpdates[0].vote = pollMessage
-                    webhook(sessionId, 'messages/update', [{ key, messageTimestamp, pushName, broadcast, update }])
+                    });
+                    update.pollUpdates[0].vote = pollMessage;
+                    webhook(sessionId, "messages/update", [
+                        { key, messageTimestamp, pushName, broadcast, update },
+                    ]);
                 }
             }
         }
-    })
+    });
 
-    wa.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect } = update
-        const statusCode = lastDisconnect?.error?.output?.statusCode
+    wa.ev.on("connection.update", async (update) => {
+        const { connection, lastDisconnect } = update;
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
 
-        if (connection === 'open') {
-            retries.delete(sessionId)
+        if (connection === "open") {
+            retries.delete(sessionId);
         }
 
-        if (connection === 'close') {
-            if (statusCode === DisconnectReason.loggedOut || !shouldReconnect(sessionId)) {
+        if (connection === "close") {
+            if (
+                statusCode === DisconnectReason.loggedOut ||
+                !shouldReconnect(sessionId)
+            ) {
                 if (res && !res.headersSent) {
-                    response(res, 500, false, 'Unable to create session.')
+                    response(res, 500, false, "Unable to create session.");
                 }
 
-                return deleteSession(sessionId)
+                return deleteSession(sessionId);
             }
 
             setTimeout(
                 () => {
-                    createSession(sessionId, res)
+                    createSession(sessionId, res);
                 },
-                statusCode === DisconnectReason.restartRequired ? 0 : parseInt(process.env.RECONNECT_INTERVAL ?? 0)
-            )
+                statusCode === DisconnectReason.restartRequired
+                    ? 0
+                    : parseInt(process.env.RECONNECT_INTERVAL ?? 0),
+            );
         }
 
         if (update.qr) {
             if (res && !res.headersSent) {
                 try {
-                    const qr = await toDataURL(update.qr)
+                    const qr = await toDataURL(update.qr);
 
-                    response(res, 200, true, 'QR code received, please scan the QR code.', { qr })
+                    response(
+                        res,
+                        200,
+                        true,
+                        "QR code received, please scan the QR code.",
+                        { qr },
+                    );
 
-                    return
+                    return;
                 } catch {
-                    response(res, 500, false, 'Unable to create QR code.')
+                    response(res, 500, false, "Unable to create QR code.");
                 }
             }
 
             try {
-                await wa.logout()
+                await wa.logout();
             } catch {
             } finally {
-                deleteSession(sessionId)
+                deleteSession(sessionId);
             }
         }
-    })
+    });
 
     async function getMessage(key) {
         if (store) {
-            const msg = await store.loadMessage(key.remoteJid, key.id)
-            return msg?.message || undefined
+            const msg = await store.loadMessage(key.remoteJid, key.id);
+            return msg?.message || undefined;
         }
 
         // Only if store is present
-        return proto.Message.fromObject({})
+        return proto.Message.fromObject({});
     }
-}
+};
 
 /**
  * @returns {(import('@whiskeysockets/baileys').AnyWASocket|null)}
  */
 const getSession = (sessionId) => {
-    return sessions.get(sessionId) ?? null
-}
+    return sessions.get(sessionId) ?? null;
+};
 
 const getListSessions = () => {
-    return [...sessions.keys()]
-}
+    return [...sessions.keys()];
+};
 
 const deleteSession = (sessionId) => {
-    const sessionFile = 'md_' + sessionId
-    const storeFile = `${sessionId}_store.json`
-    const rmOptions = { force: true, recursive: true }
+    const sessionFile = "md_" + sessionId;
+    const storeFile = `${sessionId}_store.json`;
+    const rmOptions = { force: true, recursive: true };
 
-    rmSync(sessionsDir(sessionFile), rmOptions)
-    rmSync(sessionsDir(storeFile), rmOptions)
+    rmSync(sessionsDir(sessionFile), rmOptions);
+    rmSync(sessionsDir(storeFile), rmOptions);
 
-    sessions.delete(sessionId)
-    retries.delete(sessionId)
-}
+    sessions.delete(sessionId);
+    retries.delete(sessionId);
+};
 
 const getChatList = (sessionId, isGroup = false) => {
-    const filter = isGroup ? '@g.us' : '@s.whatsapp.net'
+    const filter = isGroup ? "@g.us" : "@s.whatsapp.net";
 
     return getSession(sessionId).store.chats.filter((chat) => {
-        return chat.id.endsWith(filter)
-    })
-}
+        return chat.id.endsWith(filter);
+    });
+};
 
 /**
  * @param {import('@whiskeysockets/baileys').AnyWASocket} session
  */
 const isExists = async (session, jid, isGroup = false) => {
     try {
-        let result
+        let result;
 
         if (isGroup) {
-            result = await session.groupMetadata(jid)
+            result = await session.groupMetadata(jid);
 
-            return Boolean(result.id)
+            return Boolean(result.id);
         }
 
-        ;[result] = await session.onWhatsApp(jid)
+        [result] = await session.onWhatsApp(jid);
 
-        return result.exists
+        return result.exists;
     } catch {
-        return false
+        return false;
     }
-}
+};
 
 /**
  * @param {import('@whiskeysockets/baileys').AnyWASocket} session
  */
 const sendMessage = async (session, receiver, message, delayMs = 1000) => {
     try {
-        await delay(parseInt(delayMs))
+        await delay(parseInt(delayMs));
 
-        return session.sendMessage(receiver, message)
+        return session.sendMessage(receiver, message);
     } catch {
-        return Promise.reject(null) // eslint-disable-line prefer-promise-reject-errors
+        return Promise.reject(null); // eslint-disable-line prefer-promise-reject-errors
     }
-}
+};
 
 /**
  * @param {import('@whiskeysockets/baileys').AnyWASocket} session
  */
 const updateProfileStatus = async (session, status) => {
     try {
-        return await session.updateProfileStatus(status)
+        return await session.updateProfileStatus(status);
     } catch {
-        return Promise.reject(null) // eslint-disable-line prefer-promise-reject-errors
+        return Promise.reject(null); // eslint-disable-line prefer-promise-reject-errors
     }
-}
+};
 
 const updateProfileName = async (session, name) => {
     try {
-        return await session.updateProfileName(name)
+        return await session.updateProfileName(name);
     } catch {
-        return Promise.reject(null) // eslint-disable-line prefer-promise-reject-errors
+        return Promise.reject(null); // eslint-disable-line prefer-promise-reject-errors
     }
-}
+};
 
 const formatPhone = (phone) => {
-    if (phone.endsWith('@s.whatsapp.net')) {
-        return phone
+    if (phone.endsWith("@s.whatsapp.net")) {
+        return phone;
     }
 
-    let formatted = phone.replace(/\D/g, '')
+    let formatted = phone.replace(/\D/g, "");
 
-    return (formatted += '@s.whatsapp.net')
-}
+    return (formatted += "@s.whatsapp.net");
+};
 
 const formatGroup = (group) => {
-    if (group.endsWith('@g.us')) {
-        return group
+    if (group.endsWith("@g.us")) {
+        return group;
     }
 
-    let formatted = group.replace(/[^\d-]/g, '')
+    let formatted = group.replace(/[^\d-]/g, "");
 
-    return (formatted += '@g.us')
-}
+    return (formatted += "@g.us");
+};
 
 const cleanup = () => {
-    console.log('Running cleanup before exit.')
+    console.log("Running cleanup before exit.");
 
     sessions.forEach((session, sessionId) => {
-        session.store.writeToFile(sessionsDir(`${sessionId}_store.json`))
-    })
-}
+        session.store.writeToFile(sessionsDir(`${sessionId}_store.json`));
+    });
+};
 
 const getGroupsWithParticipants = async (session) => {
-    return session.groupFetchAllParticipating()
-}
+    return session.groupFetchAllParticipating();
+};
 
 const participantsUpdate = async (session, jid, participants, action) => {
-    return session.groupParticipantsUpdate(jid, participants, action)
-}
+    return session.groupParticipantsUpdate(jid, participants, action);
+};
 
 const updateSubject = async (session, jid, subject) => {
-    return session.groupUpdateSubject(jid, subject)
-}
+    return session.groupUpdateSubject(jid, subject);
+};
 
 const updateDescription = async (session, jid, description) => {
-    return session.groupUpdateDescription(jid, description)
-}
+    return session.groupUpdateDescription(jid, description);
+};
 
 const settingUpdate = async (session, jid, settings) => {
-    return session.groupSettingUpdate(jid, settings)
-}
+    return session.groupSettingUpdate(jid, settings);
+};
 
 const leave = async (session, jid) => {
-    return session.groupLeave(jid)
-}
+    return session.groupLeave(jid);
+};
 
 const inviteCode = async (session, jid) => {
-    return session.groupInviteCode(jid)
-}
+    return session.groupInviteCode(jid);
+};
 
 const revokeInvite = async (session, jid) => {
-    return session.groupRevokeInvite(jid)
-}
+    return session.groupRevokeInvite(jid);
+};
 
 const metaData = async (session, req) => {
-    return session.groupMetadata(req.groupId)
-}
+    return session.groupMetadata(req.groupId);
+};
 
 const acceptInvite = async (session, req) => {
-    return session.groupAcceptInvite(req.invite)
-}
+    return session.groupAcceptInvite(req.invite);
+};
 
 const profilePicture = async (session, jid, urlImage) => {
-    const image = await downloadImage(urlImage)
-    return session.updateProfilePicture(jid, { url: image })
-}
+    const image = await downloadImage(urlImage);
+    return session.updateProfilePicture(jid, { url: image });
+};
 
 const readMessage = async (session, keys) => {
-    return session.readMessages(keys)
-}
+    return session.readMessages(keys);
+};
 
 const getStoreMessage = async (session, messageId, remoteJid) => {
     try {
-        return await session.store.loadMessage(remoteJid, messageId)
+        return await session.store.loadMessage(remoteJid, messageId);
     } catch {
         // eslint-disable-next-line prefer-promise-reject-errors
-        return Promise.reject(null)
+        return Promise.reject(null);
     }
-}
+};
 
 const getMessageMedia = async (session, message) => {
     try {
-        const messageType = Object.keys(message.message)[0]
-        const mediaMessage = message.message[messageType]
+        const messageType = Object.keys(message.message)[0];
+        const mediaMessage = message.message[messageType];
         const buffer = await downloadMediaMessage(
             message,
-            'buffer',
+            "buffer",
             {},
-            { reuploadRequest: session.updateMediaMessage }
-        )
+            { reuploadRequest: session.updateMediaMessage },
+        );
 
         return {
             messageType,
-            fileName: mediaMessage.fileName ?? '',
-            caption: mediaMessage.caption ?? '',
+            fileName: mediaMessage.fileName ?? "",
+            caption: mediaMessage.caption ?? "",
             size: {
                 fileLength: mediaMessage.fileLength,
                 height: mediaMessage.height ?? 0,
                 width: mediaMessage.width ?? 0,
             },
             mimetype: mediaMessage.mimetype,
-            base64: buffer.toString('base64'),
-        }
+            base64: buffer.toString("base64"),
+        };
     } catch {
         // eslint-disable-next-line prefer-promise-reject-errors
-        return Promise.reject(null)
+        return Promise.reject(null);
     }
-}
+};
 
 const init = () => {
     readdir(sessionsDir(), (err, files) => {
         if (err) {
-            throw err
+            throw err;
         }
 
         for (const file of files) {
-            if ((!file.startsWith('md_') && !file.startsWith('legacy_')) || file.endsWith('_store')) {
-                continue
+            if (
+                (!file.startsWith("md_") && !file.startsWith("legacy_")) ||
+                file.endsWith("_store")
+            ) {
+                continue;
             }
 
-            const filename = file.replace('.json', '')
-            const sessionId = filename.substring(3)
-            console.log('Recovering session: ' + sessionId)
-            createSession(sessionId)
+            const filename = file.replace(".json", "");
+            const sessionId = filename.substring(3);
+            console.log("Recovering session: " + sessionId);
+            createSession(sessionId);
         }
-    })
-}
+    });
+};
 
 export {
     isSessionExists,
@@ -467,4 +505,4 @@ export {
     isSessionConnected,
     getMessageMedia,
     getStoreMessage,
-}
+};
