@@ -120,6 +120,7 @@ const createSession = async (
         generateHighQualityLinkPreview: true,
         browser: ["Ubuntu", "Chrome", "20.0.04"],
         getMessage,
+        syncFullHistory: true,
     });
     store?.bind(wa.ev);
 
