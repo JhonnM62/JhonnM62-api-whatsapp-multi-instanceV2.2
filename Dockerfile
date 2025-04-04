@@ -1,4 +1,5 @@
-FROM node:18-bullseye as bot
+# Usa la imagen oficial con Node 20 LTS
+FROM node:20 as bot
 # Establece el directorio de trabajo en el contenedor
 WORKDIR /app
 
