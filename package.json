@@ -20,7 +20,20 @@
         "node": ">=18.16.0"
     },
     "dependencies": {
+        "@ffmpeg-installer/ffmpeg": "^1.1.0",
         "baileys": "^6.7.17",
+        "bcryptjs": "^2.4.3",
+        "ejs": "^3.1.9",
+        "express-ejs-layouts": "^2.5.1",
+        "fluent-ffmpeg": "^2.1.2",
+        "fs": "^0.0.1-security",
+        "helmet": "^5.1.1",
+        "jsonwebtoken": "^8.5.1",
+        "mongoose": "^6.5.0",
+        "morgan": "^1.10.0",
+        "multer": "^1.4.5-lts.1",
+        "qrcode-terminal": "^0.12.0",
+        "sharp": "^0.32.6",
         "axios": "^1.8.4",
         "cors": "^2.8.5",
         "dotenv": "^16.5.0",
@@ -32,6 +45,8 @@
         "qrcode": "^1.5.4"
     },
     "devDependencies": {
+        "eslint-config-prettier": "^9.0.0",
+        "eslint-config-xo": "^0.43.1",
         "eslint": "^8.57.1",
         "eslint-plugin-prettier": "^5.2.6",
         "prettier": "^3.5.3"
