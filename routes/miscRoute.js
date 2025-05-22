@@ -12,7 +12,7 @@ router.post(
     body('status').notEmpty(),
     requestValidator,
     sessionValidator,
-    controller.setProfileStatus
+    controller.setProfileStatus,
 )
 router.post(
     '/update-profile-name',
@@ -20,8 +20,47 @@ router.post(
     body('name').notEmpty(),
     requestValidator,
     sessionValidator,
-    controller.setProfileName
+    controller.setProfileName,
 )
 router.post('/my-profile', query('id').notEmpty(), requestValidator, sessionValidator, controller.getProfile)
+
+router.post(
+    '/profile-picture',
+    query('id').notEmpty(),
+    body('jid').notEmpty(),
+    body('isGroup').notEmpty(),
+    requestValidator,
+    sessionValidator,
+    controller.getProfilePictureUser,
+)
+
+router.post(
+    '/set-profile-picture',
+    query('id').notEmpty(),
+    body('url').notEmpty(),
+    requestValidator,
+    sessionValidator,
+    controller.setProfilePicture,
+)
+
+router.post(
+    '/block-and-unblock',
+    query('id').notEmpty(),
+    body('jid').notEmpty(),
+    body('isBlock').notEmpty(),
+    requestValidator,
+    sessionValidator,
+    controller.blockAndUnblockContact,
+)
+
+router.post(
+    '/public-story-status',
+    query('id').notEmpty(),
+    body('receiver').notEmpty(),
+    body('message').notEmpty(),
+    requestValidator,
+    sessionValidator,
+    controller.shareStory,
+)
 
 export default router
