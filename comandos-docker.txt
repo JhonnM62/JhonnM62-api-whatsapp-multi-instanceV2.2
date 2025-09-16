@@ -1,0 +1,45 @@
+# Comandos para gestionar el contenedor Baileys API
+
+# Construir y ejecutar con docker-compose (RECOMENDADO)
+docker-compose up -d --build
+
+# Ver logs en tiempo real
+docker-compose logs -f
+
+# Detener el contenedor
+docker-compose down
+
+# Reiniciar el contenedor
+docker-compose restart
+
+# Ver estadísticas de memoria
+docker stats baileys-api-optimized
+
+# Acceder al contenedor
+docker exec -it baileys-api-optimized /bin/bash
+
+# ==========================================
+# Comandos alternativos con docker run:
+
+# Construir la imagen
+docker build -t baileys-api .
+
+# Ejecutar el contenedor con configuración optimizada
+docker run -d \
+  --name baileys-api-optimized \
+  -p 3000:3000 \
+  -v ./sessions:/app/sessions \
+  -v ./store:/app/store \
+  -m 8g \
+  --restart unless-stopped \
+  baileys-api
+
+# Detener y eliminar el contenedor actual problemático
+docker stop 33f611b5dc05
+docker rm 33f611b5dc05
+
+# Ver logs del contenedor
+docker logs -f baileys-api-optimized
+
+# Monitorear el uso de memoria
+docker exec baileys-api-optimized node -e "console.log('Heap usado:', Math.round(process.memoryUsage().heapUsed / 1024 / 1024), 'MB de', Math.round(process.memoryUsage().heapTotal / 1024 / 1024), 'MB')"
