@@ -22,7 +22,7 @@
     "dependencies": {
         "@ffmpeg-installer/ffmpeg": "^1.1.0",
         "axios": "^1.8.4",
-        "baileys": "^6.7.19",
+        "baileys": "^7.0.0-rc.3",
         "bcryptjs": "^2.4.3",
         "cors": "^2.8.5",
         "date-fns": "^4.1.0",

@@ -36,10 +36,32 @@ function makeInMemoryStore({ logger } = {}) {
                 for (const id of deletedChatIds) chats.delete(id);
         });
         ev.on("messages.upsert", ({ messages: newMessages }) => {
+            // 🔍 LOG: Mensajes llegando al store
+            console.log(`[MEMORY_STORE] 📨 messages.upsert - Almacenando mensajes:`, {
+                totalMessages: newMessages.length,
+                messagesInfo: newMessages.map(msg => ({
+                    id: msg.key?.id,
+                    fromMe: msg.key?.fromMe,
+                    remoteJid: msg.key?.remoteJid,
+                    participant: msg.key?.participant,
+                    timestamp: msg.messageTimestamp
+                }))
+            });
+
             for (const msg of newMessages) {
                 const jid = msg.key.remoteJid;
-                if (!messages.has(jid)) messages.set(jid, new Map());
+                if (!messages.has(jid)) {
+                    messages.set(jid, new Map());
+                    console.log(`[MEMORY_STORE] 🆕 Creando nuevo Map para JID: ${jid}`);
+                }
                 messages.get(jid).set(msg.key.id, msg);
+                
+                console.log(`[MEMORY_STORE] 💾 Mensaje almacenado:`, {
+                    jid,
+                    messageId: msg.key.id,
+                    fromMe: msg.key.fromMe,
+                    totalMessagesForJid: messages.get(jid).size
+                });
             }
         });
         ev.on("contacts.set", ({ contacts: newContacts }) => {
@@ -182,14 +204,51 @@ function makeInMemoryStore({ logger } = {}) {
     };
 
     const loadMessages = async (jid, count, cursor) => {
+        // 🔍 LOG: Parámetros de entrada a loadMessages
+        console.log(`[MEMORY_STORE] 📥 loadMessages - Parámetros:`, {
+            jid,
+            count,
+            cursor,
+            hasMessagesForJid: messages.has(jid)
+        });
+
         const msgMap = messages.get(jid);
         if (!msgMap) {
+            console.log(`[MEMORY_STORE] ⚠️ loadMessages - No hay mensajes para JID: ${jid}`);
             return [];
         }
+
+        // 🔍 LOG: Información del Map de mensajes
+        console.log(`[MEMORY_STORE] 📊 loadMessages - Map info:`, {
+            jid,
+            totalMessagesInMap: msgMap.size,
+            messageIds: Array.from(msgMap.keys()).slice(0, 5) // Primeros 5 IDs
+        });
+
         let allMsgs = Array.from(msgMap.values());
+        
+        // 🔍 LOG: Mensajes antes del ordenamiento
+        console.log(`[MEMORY_STORE] 📋 loadMessages - Antes del ordenamiento:`, {
+            jid,
+            totalMessages: allMsgs.length,
+            firstMessage: allMsgs[0] ? {
+                id: allMsgs[0].key?.id,
+                fromMe: allMsgs[0].key?.fromMe,
+                timestamp: allMsgs[0].messageTimestamp
+            } : null,
+            fromMeStats: allMsgs.reduce((stats, msg) => {
+                const fromMe = msg.key?.fromMe;
+                if (fromMe === true) stats.fromMeTrue++;
+                else if (fromMe === false) stats.fromMeFalse++;
+                else stats.fromMeUndefined++;
+                return stats;
+            }, { fromMeTrue: 0, fromMeFalse: 0, fromMeUndefined: 0 })
+        });
+
         allMsgs.sort(
             (a, b) => (a.messageTimestamp || 0) - (b.messageTimestamp || 0),
         ); // Antiguo primero
+        
         let cursorIndex = -1;
         if (cursor?.before?.id) {
             cursorIndex = allMsgs.findIndex(
@@ -197,9 +256,33 @@ function makeInMemoryStore({ logger } = {}) {
                     msg.key.id === cursor.before.id &&
                     msg.key.fromMe === cursor.before.fromMe,
             );
+            console.log(`[MEMORY_STORE] 🔍 loadMessages - Cursor encontrado en índice:`, cursorIndex);
         }
+        
         let startIndex = cursorIndex !== -1 ? cursorIndex + 1 : 0;
-        return allMsgs.slice(startIndex, startIndex + count);
+        const result = allMsgs.slice(startIndex, startIndex + count);
+        
+        // 🔍 LOG: Resultado final
+        console.log(`[MEMORY_STORE] 📤 loadMessages - Resultado:`, {
+            jid,
+            startIndex,
+            requestedCount: count,
+            returnedCount: result.length,
+            resultFromMeStats: result.reduce((stats, msg) => {
+                const fromMe = msg.key?.fromMe;
+                if (fromMe === true) stats.fromMeTrue++;
+                else if (fromMe === false) stats.fromMeFalse++;
+                else stats.fromMeUndefined++;
+                return stats;
+            }, { fromMeTrue: 0, fromMeFalse: 0, fromMeUndefined: 0 }),
+            firstResultMessage: result[0] ? {
+                id: result[0].key?.id,
+                fromMe: result[0].key?.fromMe,
+                timestamp: result[0].messageTimestamp
+            } : null
+        });
+
+        return result;
     };
 
     // >>>>> NUEVA FUNCIÓN para limpiar solo los mensajes <<<<<

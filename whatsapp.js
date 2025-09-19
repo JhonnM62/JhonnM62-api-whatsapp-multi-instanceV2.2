@@ -933,7 +933,7 @@ const createSession = async (
     const makeWASocket = makeWASocketModule.default ?? makeWASocketModule;
     const WA_VERSION = [2, 3000, 1025190524];
     const wa = makeWASocket({
-        version: WA_VERSION,
+        //version: WA_VERSION,
         printQRInTerminal: false,
         mobile: false,
         auth: {
@@ -945,7 +945,7 @@ const createSession = async (
         generateHighQualityLinkPreview: true,
         getMessage,
         // Reducir el historial sincronizado para ahorrar memoria
-        syncFullHistory: false,
+        syncFullHistory: true, // 🔧 CAMBIO TEMPORAL: Activando sincronización completa para diagnóstico
         // Opciones para mejorar el rendimiento de memoria
         keepAliveIntervalMs: 30000, // Aumentar para reducir la carga
         // Desactivar funciones menos usadas para ahorrar memoria
@@ -996,8 +996,40 @@ const createSession = async (
     wa.ev.on("labels.edit", (l) => callWebhook(sessionId, "LABELS_EDIT", l));
 
     wa.ev.on("messages.upsert", async (m) => {
+        // 🔍 LOG: Mensajes recibidos en messages.upsert
+        console.log(`[${sessionId}] 📨 messages.upsert - Mensajes recibidos:`, {
+            totalMessages: m.messages.length,
+            messagesInfo: m.messages.map(msg => ({
+                id: msg.key?.id,
+                fromMe: msg.key?.fromMe,
+                remoteJid: msg.key?.remoteJid,
+                participant: msg.key?.participant,
+                timestamp: msg.messageTimestamp,
+                hasMessage: !!msg.message,
+                messageType: msg.message ? Object.keys(msg.message)[0] : null
+            }))
+        });
+
+        // Análisis de fromMe en mensajes recibidos
+        const fromMeStatsReceived = m.messages.reduce((stats, msg) => {
+            const fromMe = msg.key?.fromMe;
+            if (fromMe === true) stats.fromMeTrue++;
+            else if (fromMe === false) stats.fromMeFalse++;
+            else stats.fromMeUndefined++;
+            return stats;
+        }, { fromMeTrue: 0, fromMeFalse: 0, fromMeUndefined: 0 });
+
+        console.log(`[${sessionId}] 📊 messages.upsert - Estadísticas fromMe recibidas:`, fromMeStatsReceived);
+
         // Filtrar para procesar solo mensajes no enviados por nosotros
         const messagesToProcess = m.messages.filter((msg) => !msg.key.fromMe);
+        
+        console.log(`[${sessionId}] 🔄 messages.upsert - Después del filtro (!fromMe):`, {
+            originalCount: m.messages.length,
+            filteredCount: messagesToProcess.length,
+            filteredOut: m.messages.length - messagesToProcess.length
+        });
+
         if (messagesToProcess.length > 0) {
             const processedMessagesForWebhook = await Promise.all(
                 messagesToProcess.map(async (msg) => {

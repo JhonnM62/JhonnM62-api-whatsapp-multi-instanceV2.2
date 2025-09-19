@@ -26,4 +26,50 @@ const deleteFile = async (path) => {
     })
 }
 
-export { compareAndFilter, isUrlValid, fileExists, deleteFile }
+/**
+ * Convierte un JID entre formatos @lid y @s.whatsapp.net
+ * @param {string} jid - JID a convertir
+ * @returns {string} JID convertido al formato alternativo
+ */
+const convertJidFormat = (jid) => {
+    if (!jid) return jid;
+    
+    // Si es formato @lid, convertir a @s.whatsapp.net
+    if (jid.includes('@lid')) {
+        const number = jid.split('@')[0];
+        return `${number}@s.whatsapp.net`;
+    }
+    
+    // Si es formato @s.whatsapp.net, convertir a @lid
+    if (jid.includes('@s.whatsapp.net')) {
+        const number = jid.split('@')[0];
+        return `${number}@lid`;
+    }
+    
+    // Si es formato @g.us (grupos), no convertir
+    if (jid.includes('@g.us')) {
+        return jid;
+    }
+    
+    return jid;
+}
+
+/**
+ * Obtiene ambos formatos posibles de un JID
+ * @param {string} jid - JID original
+ * @returns {Array<string>} Array con ambos formatos posibles
+ */
+const getJidFormats = (jid) => {
+    if (!jid) return [jid];
+    
+    const formats = [jid];
+    const converted = convertJidFormat(jid);
+    
+    if (converted !== jid) {
+        formats.push(converted);
+    }
+    
+    return formats;
+}
+
+export { compareAndFilter, isUrlValid, fileExists, deleteFile, convertJidFormat, getJidFormats }
