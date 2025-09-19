@@ -27,49 +27,96 @@ const deleteFile = async (path) => {
 }
 
 /**
- * Convierte un JID entre formatos @lid y @s.whatsapp.net
- * @param {string} jid - JID a convertir
- * @returns {string} JID convertido al formato alternativo
+ * Obtiene ambos formatos posibles de un JID usando signalRepository.lidMapping de Baileys
+ * @param {string} jid - El JID original
+ * @param {Object} session - La sesión de Baileys que contiene signalRepository
+ * @returns {Array<string>} - Array con todos los formatos posibles del JID
  */
-const convertJidFormat = (jid) => {
-    if (!jid) return jid;
+const getJidFormats = async (jid, session) => {
+    console.log(`🔍 getJidFormats - Iniciando conversión para JID: ${jid}`);
+    const formats = [jid]; // Siempre incluir el JID original
     
-    // Si es formato @lid, convertir a @s.whatsapp.net
-    if (jid.includes('@lid')) {
-        const number = jid.split('@')[0];
-        return `${number}@s.whatsapp.net`;
-    }
-    
-    // Si es formato @s.whatsapp.net, convertir a @lid
-    if (jid.includes('@s.whatsapp.net')) {
-        const number = jid.split('@')[0];
-        return `${number}@lid`;
-    }
-    
-    // Si es formato @g.us (grupos), no convertir
-    if (jid.includes('@g.us')) {
-        return jid;
-    }
-    
-    return jid;
-}
+    try {
+        // Verificación detallada de la disponibilidad de signalRepository
+        console.log(`🔍 getJidFormats - Verificando session:`, {
+            hasSession: !!session,
+            hasSignalRepository: !!(session && session.signalRepository),
+            hasLidMapping: !!(session && session.signalRepository && session.signalRepository.lidMapping),
+            sessionKeys: session ? Object.keys(session) : [],
+            signalRepositoryKeys: session && session.signalRepository ? Object.keys(session.signalRepository) : []
+        });
 
-/**
- * Obtiene ambos formatos posibles de un JID
- * @param {string} jid - JID original
- * @returns {Array<string>} Array con ambos formatos posibles
- */
-const getJidFormats = (jid) => {
-    if (!jid) return [jid];
-    
-    const formats = [jid];
-    const converted = convertJidFormat(jid);
-    
-    if (converted !== jid) {
-        formats.push(converted);
-    }
-    
-    return formats;
-}
+        if (!session || !session.signalRepository || !session.signalRepository.lidMapping) {
+            console.warn('⚠️ signalRepository.lidMapping no disponible, usando conversión básica');
+            // Fallback a conversión básica si no está disponible
+            if (jid.endsWith('@lid')) {
+                const basicFormat = jid.replace('@lid', '@s.whatsapp.net');
+                formats.push(basicFormat);
+                console.log(`🔄 getJidFormats - Conversión básica @lid -> @s.whatsapp.net: ${basicFormat}`);
+            } else if (jid.endsWith('@s.whatsapp.net')) {
+                const basicFormat = jid.replace('@s.whatsapp.net', '@lid');
+                formats.push(basicFormat);
+                console.log(`🔄 getJidFormats - Conversión básica @s.whatsapp.net -> @lid: ${basicFormat}`);
+            }
+            console.log(`✅ getJidFormats - Formatos finales (básico):`, formats);
+            return formats;
+        }
 
-export { compareAndFilter, isUrlValid, fileExists, deleteFile, convertJidFormat, getJidFormats }
+        const lidMapping = session.signalRepository.lidMapping;
+        console.log(`🔍 getJidFormats - lidMapping disponible, métodos:`, Object.getOwnPropertyNames(lidMapping));
+        
+        if (jid.endsWith('@s.whatsapp.net')) {
+            // Es un PN (Phone Number), intentar obtener el LID correspondiente
+            const phoneNumber = jid.replace('@s.whatsapp.net', '');
+            console.log(`📞 getJidFormats - Convirtiendo PN a LID: ${phoneNumber}`);
+            
+            try {
+                const lid = await lidMapping.getLIDForPN(phoneNumber);
+                console.log(`🔍 getJidFormats - Resultado getLIDForPN(${phoneNumber}):`, lid);
+                
+                if (lid) {
+                    const lidFormat = `${lid}@lid`;
+                    formats.push(lidFormat);
+                    console.log(`✅ getJidFormats - LID encontrado: ${lidFormat}`);
+                } else {
+                    console.warn(`⚠️ getJidFormats - No se encontró LID para PN: ${phoneNumber}`);
+                }
+            } catch (error) {
+                console.warn(`⚠️ getJidFormats - Error al obtener LID para PN ${phoneNumber}:`, error.message);
+                console.warn(`⚠️ getJidFormats - Stack trace:`, error.stack);
+            }
+        } else if (jid.endsWith('@lid')) {
+            // Es un LID, intentar obtener el PN correspondiente
+            const lidNumber = jid.replace('@lid', '');
+            console.log(`🆔 getJidFormats - Convirtiendo LID a PN: ${lidNumber}`);
+            
+            try {
+                const phoneNumber = await lidMapping.getPNForLID(lidNumber);
+                console.log(`🔍 getJidFormats - Resultado getPNForLID(${lidNumber}):`, phoneNumber);
+                
+                if (phoneNumber) {
+                    const pnFormat = `${phoneNumber}@s.whatsapp.net`;
+                    formats.push(pnFormat);
+                    console.log(`✅ getJidFormats - PN encontrado: ${pnFormat}`);
+                } else {
+                    console.warn(`⚠️ getJidFormats - No se encontró PN para LID: ${lidNumber}`);
+                }
+            } catch (error) {
+                console.warn(`⚠️ getJidFormats - Error al obtener PN para LID ${lidNumber}:`, error.message);
+                console.warn(`⚠️ getJidFormats - Stack trace:`, error.stack);
+            }
+        }
+        
+        // Remover duplicados
+        const uniqueFormats = [...new Set(formats)];
+        console.log(`✅ getJidFormats - Formatos finales únicos:`, uniqueFormats);
+        return uniqueFormats;
+        
+    } catch (error) {
+        console.error('❌ Error en getJidFormats:', error);
+        console.error('❌ Stack trace:', error.stack);
+        return formats; // Retornar al menos el JID original
+    }
+};
+
+export { compareAndFilter, isUrlValid, fileExists, deleteFile, getJidFormats }

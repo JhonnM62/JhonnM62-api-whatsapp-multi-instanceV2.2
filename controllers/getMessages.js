@@ -53,8 +53,8 @@ const getMessages = async (req, res) => {
             useCursor
         });
 
-        // Obtener ambos formatos posibles del JID (para compatibilidad @lid/@s.whatsapp.net)
-        const jidFormats = getJidFormats(jidFormat);
+        // Obtener todos los formatos posibles del JID usando signalRepository.lidMapping
+        const jidFormats = await getJidFormats(jidFormat, session);
         console.log(`[${sessionId}] 🔄 getMessages - Formatos JID a probar:`, jidFormats);
 
         let messages = [];
