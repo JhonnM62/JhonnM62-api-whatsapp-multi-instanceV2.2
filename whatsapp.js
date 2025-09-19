@@ -995,6 +995,29 @@ const createSession = async (
     );
     wa.ev.on("labels.edit", (l) => callWebhook(sessionId, "LABELS_EDIT", l));
 
+    // 🔄 Manejo del evento lid-mapping.update para capturar nuevos mappings LID/PN
+    wa.ev.on("lid-mapping.update", (mappings) => {
+        console.log(`[${sessionId}] 🔗 lid-mapping.update - Nuevos mappings recibidos:`, {
+            count: mappings.length,
+            mappings: mappings.map(m => ({
+                lid: m.lid,
+                pn: m.pn
+            }))
+        });
+
+        try {
+            // Almacenar cada mapping usando storeLIDPNMapping
+            mappings.forEach(mapping => {
+                if (mapping.lid && mapping.pn) {
+                    wa.storeLIDPNMapping(mapping.lid, mapping.pn);
+                    console.log(`[${sessionId}] ✅ Mapping almacenado: ${mapping.lid} <-> ${mapping.pn}`);
+                }
+            });
+        } catch (error) {
+            console.error(`[${sessionId}] ❌ Error almacenando mappings LID/PN:`, error);
+        }
+    });
+
     wa.ev.on("messages.upsert", async (m) => {
         // 🔍 LOG: Mensajes recibidos en messages.upsert
         console.log(`[${sessionId}] 📨 messages.upsert - Mensajes recibidos:`, {
@@ -1020,6 +1043,38 @@ const createSession = async (
         }, { fromMeTrue: 0, fromMeFalse: 0, fromMeUndefined: 0 });
 
         console.log(`[${sessionId}] 📊 messages.upsert - Estadísticas fromMe recibidas:`, fromMeStatsReceived);
+
+        // 🔗 Extraer y almacenar mappings LID/PN de remoteJidAlt
+        m.messages.forEach(msg => {
+            try {
+                const { remoteJid, remoteJidAlt } = msg.key || {};
+                
+                if (remoteJid && remoteJidAlt && remoteJid !== remoteJidAlt) {
+                    // Extraer el número de teléfono de remoteJidAlt (formato: numero@s.whatsapp.net)
+                    const pnMatch = remoteJidAlt.match(/^(\d+)@s\.whatsapp\.net$/);
+                    
+                    if (pnMatch) {
+                        const phoneNumber = pnMatch[1];
+                        console.log(`[${sessionId}] 🔗 Mapping LID/PN detectado en mensaje:`, {
+                            messageId: msg.key.id,
+                            lid: remoteJid,
+                            pn: phoneNumber,
+                            remoteJidAlt: remoteJidAlt
+                        });
+
+                        // Almacenar el mapping usando storeLIDPNMapping
+                        if (wa.storeLIDPNMapping) {
+                            wa.storeLIDPNMapping(remoteJid, phoneNumber);
+                            console.log(`[${sessionId}] ✅ Mapping almacenado desde mensaje: ${remoteJid} <-> ${phoneNumber}`);
+                        } else {
+                            console.warn(`[${sessionId}] ⚠️ storeLIDPNMapping no disponible`);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error(`[${sessionId}] ❌ Error procesando mapping LID/PN del mensaje:`, error);
+            }
+        });
 
         // Filtrar para procesar solo mensajes no enviados por nosotros
         const messagesToProcess = m.messages.filter((msg) => !msg.key.fromMe);
