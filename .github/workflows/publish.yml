@@ -1,4 +1,4 @@
-name: Deploy API WhatsApp
+name: Deploy API WhatsApp v1.0
 
 on:
     push:
@@ -37,7 +37,7 @@ jobs:
               with:
                   registry: ghcr.io
                   username: ${{ steps.repo_name_step.outputs.actor_lower }}
-                  password: ${{ secrets.TOKEN_EXAMPLE }}
+                  password: ${{ secrets.BACKEND_TOKEN }}
 
             # Construir imagen con nombres completamente en minúsculas
             - name: Construir y subir la imagen de Docker
