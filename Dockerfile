@@ -5,7 +5,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Copiamos los archivos de manifiesto para instalar las dependencias
-COPY package.json package-lock.json ./
+COPY package.json ./
 
 # Instalamos únicamente las dependencias de producción
 RUN npm install --omit=dev
