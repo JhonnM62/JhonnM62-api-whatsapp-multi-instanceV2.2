@@ -1,20 +1,18 @@
-# Usamos la imagen de Node.js 20 con Alpine para que sea ligera
-FROM node:20-alpine
-
-# Establecemos el directorio de trabajo dentro del contenedor
+# Usa la imagen oficial con Node 20 LTS
+FROM node:20 as bot
+# Establece el directorio de trabajo en el contenedor
 WORKDIR /app
 
-# Copiamos los archivos de manifiesto para instalar las dependencias
-COPY package.json ./
+# Copia los archivos de tu proyecto al contenedor
+COPY package*.json ./
 
-# Instalamos únicamente las dependencias de producción
+# Instala las dependencias del proyecto
 RUN npm install
 
-# Copiamos todo el código fuente de la aplicación
+# Copia el resto de los archivos del proyecto al contenedor
 COPY . .
 
-# Exponemos el puerto interno de la aplicación (8001)
-EXPOSE 8001
 
-# Comando para iniciar la aplicación. Docker ejecutará "npm start".
-CMD [ "npm", "start" ]
+
+# Comando para iniciar tu aplicación Node.js
+CMD ["npm", "start"]
