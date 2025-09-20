@@ -996,7 +996,7 @@ const createSession = async (
     wa.ev.on("labels.edit", (l) => callWebhook(sessionId, "LABELS_EDIT", l));
 
     // 🔄 Manejo del evento lid-mapping.update para capturar nuevos mappings LID/PN
-    wa.ev.on("lid-mapping.update", (mappings) => {
+    wa.ev.on("lid-mapping.update", async (mappings) => {
         console.log(`[${sessionId}] 🔗 lid-mapping.update - Nuevos mappings recibidos:`, {
             count: mappings.length,
             mappings: mappings.map(m => ({
@@ -1006,13 +1006,26 @@ const createSession = async (
         });
 
         try {
-            // Almacenar cada mapping usando storeLIDPNMapping
-            mappings.forEach(mapping => {
-                if (mapping.lid && mapping.pn) {
-                    wa.storeLIDPNMapping(mapping.lid, mapping.pn);
-                    console.log(`[${sessionId}] ✅ Mapping almacenado: ${mapping.lid} <-> ${mapping.pn}`);
-                }
-            });
+            // Obtener LIDMappingStore usando el método correcto
+            const lidMappingStore = wa.signalRepository?.getLIDMappingStore?.();
+            
+            if (!lidMappingStore || typeof lidMappingStore.storeLIDPNMappings !== 'function') {
+                console.warn(`[${sessionId}] ⚠️ LIDMappingStore no disponible o storeLIDPNMappings no es función`);
+                return;
+            }
+
+            // Preparar array de mappings para storeLIDPNMappings (requiere array)
+            const validMappings = mappings.filter(m => m.lid && m.pn);
+            
+            if (validMappings.length > 0) {
+                // Usar storeLIDPNMappings (plural) que acepta un array
+                await lidMappingStore.storeLIDPNMappings(validMappings);
+                console.log(`[${sessionId}] ✅ ${validMappings.length} mappings almacenados correctamente`);
+                
+                validMappings.forEach(mapping => {
+                    console.log(`[${sessionId}] ✅ Mapping: ${mapping.lid} <-> ${mapping.pn}`);
+                });
+            }
         } catch (error) {
             console.error(`[${sessionId}] ❌ Error almacenando mappings LID/PN:`, error);
         }
@@ -1045,7 +1058,7 @@ const createSession = async (
         console.log(`[${sessionId}] 📊 messages.upsert - Estadísticas fromMe recibidas:`, fromMeStatsReceived);
 
         // 🔗 Extraer y almacenar mappings LID/PN de remoteJidAlt
-        m.messages.forEach(msg => {
+        for (const msg of m.messages) {
             try {
                 const { remoteJid, remoteJidAlt } = msg.key || {};
                 
@@ -1062,19 +1075,29 @@ const createSession = async (
                             remoteJidAlt: remoteJidAlt
                         });
 
-                        // Almacenar el mapping usando storeLIDPNMapping
-                        if (wa.storeLIDPNMapping) {
-                            wa.storeLIDPNMapping(remoteJid, phoneNumber);
-                            console.log(`[${sessionId}] ✅ Mapping almacenado desde mensaje: ${remoteJid} <-> ${phoneNumber}`);
-                        } else {
-                            console.warn(`[${sessionId}] ⚠️ storeLIDPNMapping no disponible`);
+                        // Almacenar el mapping usando getLIDMappingStore y storeLIDPNMappings
+                        try {
+                            const lidMappingStore = wa.signalRepository?.getLIDMappingStore?.();
+                            
+                            if (lidMappingStore && typeof lidMappingStore.storeLIDPNMappings === 'function') {
+                                // storeLIDPNMappings requiere un array de objetos {lid, pn}
+                                await lidMappingStore.storeLIDPNMappings([{
+                                    lid: remoteJid,
+                                    pn: phoneNumber
+                                }]);
+                                console.log(`[${sessionId}] ✅ Mapping almacenado desde mensaje: ${remoteJid} <-> ${phoneNumber}`);
+                            } else {
+                                console.warn(`[${sessionId}] ⚠️ LIDMappingStore no disponible o storeLIDPNMappings no es función`);
+                            }
+                        } catch (mappingError) {
+                            console.error(`[${sessionId}] ❌ Error almacenando mapping individual:`, mappingError);
                         }
                     }
                 }
             } catch (error) {
                 console.error(`[${sessionId}] ❌ Error procesando mapping LID/PN del mensaje:`, error);
             }
-        });
+        }
 
         // Filtrar para procesar solo mensajes no enviados por nosotros
         const messagesToProcess = m.messages.filter((msg) => !msg.key.fromMe);

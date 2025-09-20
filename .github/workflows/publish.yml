@@ -1,0 +1,114 @@
+name: Deploy API WhatsApp
+
+on:
+    push:
+        branches: ["main"]
+
+jobs:
+    create-docker-image:
+        runs-on: ubuntu-latest
+        outputs:
+            # Exportamos el nombre del repositorio en minúsculas y el nombre de la imagen final
+            repo_name_lower: ${{ steps.repo_name_step.outputs.name }}
+            github_actor_lower: ${{ steps.repo_name_step.outputs.actor_lower }}
+        steps:
+            - name: Checkout del código
+              uses: actions/checkout@v3
+
+            # Convertimos todos los nombres a minúsculas de forma robusta
+            - name: Set names to lowercase
+              id: repo_name_step
+              run: |
+                  # Convertimos el nombre del repositorio a minúsculas
+                  REPO_NAME="${{ github.event.repository.name }}"
+                  REPO_LOWER=$(echo "$REPO_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9._-]//g')
+
+                  # Convertimos el actor (usuario) a minúsculas también
+                  ACTOR_LOWER=$(echo "${{ github.actor }}" | tr '[:upper:]' '[:lower:]')
+
+                  echo "name=$REPO_LOWER" >> $GITHUB_OUTPUT
+                  echo "actor_lower=$ACTOR_LOWER" >> $GITHUB_OUTPUT
+
+                  echo "Repository name converted to: $REPO_LOWER"
+                  echo "GitHub actor converted to: $ACTOR_LOWER"
+
+            - name: Login en GitHub Container Registry
+              uses: docker/login-action@v2
+              with:
+                  registry: ghcr.io
+                  username: ${{ steps.repo_name_step.outputs.actor_lower }}
+                  password: ${{ secrets.TOKEN_EXAMPLE }}
+
+            # Construir imagen con nombres completamente en minúsculas
+            - name: Construir y subir la imagen de Docker
+              run: |
+                  # Formato estándar: ghcr.io/propietario/nombre_imagen:tag (todo en minúsculas)
+                  IMAGE_TAG="ghcr.io/${{ steps.repo_name_step.outputs.actor_lower }}/${{ steps.repo_name_step.outputs.name }}:latest"
+                  echo "Building image with tag: $IMAGE_TAG"
+
+                  docker build . --tag $IMAGE_TAG
+                  docker push $IMAGE_TAG
+
+                  echo "Image successfully pushed: $IMAGE_TAG"
+
+    deploy:
+        runs-on: ubuntu-latest
+        needs: create-docker-image
+        steps:
+            - name: Instalar sshpass
+              run: sudo apt-get update && sudo apt-get install -y sshpass
+
+            - name: Conectar vía SSH y desplegar
+              env:
+                  ENV_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
+                  REPO_NAME: ${{ needs.create-docker-image.outputs.repo_name_lower }}
+                  GITHUB_ACTOR_LOWER: ${{ needs.create-docker-image.outputs.github_actor_lower }}
+              run: |
+                  sshpass -p ${{ secrets.AUTH_PASS }} ssh -o StrictHostKeyChecking=no ${{ secrets.AUTH_SERVER }} << 'EOF'
+                    # Variables del deployment
+                    export REPO_NAME=${{ needs.create-docker-image.outputs.repo_name_lower }}
+                    export GITHUB_ACTOR_LOWER=${{ needs.create-docker-image.outputs.github_actor_lower }}
+                    export IMAGE_URL="ghcr.io/$GITHUB_ACTOR_LOWER/$REPO_NAME:latest"
+
+                    echo "Deploying with the following configuration:"
+                    echo "Repository: $REPO_NAME"
+                    echo "Actor: $GITHUB_ACTOR_LOWER"  
+                    echo "Image URL: $IMAGE_URL"
+
+                    # Crear directorio del proyecto
+                    PROJECT_DIR="~/proyectos/$REPO_NAME"
+                    mkdir -p $PROJECT_DIR
+                    echo '${{ secrets.ENV_FILE_CONTENT }}' > ${PROJECT_DIR}/.env
+
+                    # Login al registry con usuario en minúsculas
+                    echo ${{ secrets.TOKEN_EXAMPLE }} | docker login ghcr.io -u "$GITHUB_ACTOR_LOWER" --password-stdin
+                    
+                    # Hacer pull de la imagen
+                    echo "Pulling image: $IMAGE_URL"
+                    docker pull $IMAGE_URL
+                    
+                    # Detener y eliminar contenedor anterior si existe
+                    CONTAINER_NAME="$REPO_NAME-container"
+                    docker stop $CONTAINER_NAME 2>/dev/null || true
+                    docker rm $CONTAINER_NAME 2>/dev/null || true
+                    
+                    # Ejecutar nuevo contenedor
+                    echo "Starting new container: $CONTAINER_NAME"
+                    docker run -d \
+                      --name $CONTAINER_NAME \
+                      -p 8001:8001 \
+                      --restart always \
+                      --env-file ${PROJECT_DIR}/.env \
+                      $IMAGE_URL
+                      
+                    # Verificar que el contenedor esté corriendo
+                    sleep 5
+                    if docker ps | grep -q $CONTAINER_NAME; then
+                        echo "✅ Container deployed successfully!"
+                        docker ps | grep $CONTAINER_NAME
+                    else
+                        echo "❌ Container failed to start"
+                        docker logs $CONTAINER_NAME
+                        exit 1
+                    fi
+                  EOF

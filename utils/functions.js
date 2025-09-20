@@ -41,13 +41,14 @@ const getJidFormats = async (jid, session) => {
         console.log(`🔍 getJidFormats - Verificando session:`, {
             hasSession: !!session,
             hasSignalRepository: !!(session && session.signalRepository),
-            hasLidMapping: !!(session && session.signalRepository && session.signalRepository.lidMapping),
+            hasGetLIDMappingStore: !!(session && session.signalRepository && typeof session.signalRepository.getLIDMappingStore === 'function'),
             sessionKeys: session ? Object.keys(session) : [],
             signalRepositoryKeys: session && session.signalRepository ? Object.keys(session.signalRepository) : []
         });
 
-        if (!session || !session.signalRepository || !session.signalRepository.lidMapping) {
-            console.warn('⚠️ signalRepository.lidMapping no disponible, usando conversión básica');
+        // Verificar si signalRepository y getLIDMappingStore están disponibles
+        if (!session || !session.signalRepository || typeof session.signalRepository.getLIDMappingStore !== 'function') {
+            console.warn('⚠️ signalRepository.getLIDMappingStore no disponible, usando conversión básica');
             // Fallback a conversión básica si no está disponible
             if (jid.endsWith('@lid')) {
                 const basicFormat = jid.replace('@lid', '@s.whatsapp.net');
@@ -62,7 +63,8 @@ const getJidFormats = async (jid, session) => {
             return formats;
         }
 
-        const lidMapping = session.signalRepository.lidMapping;
+        // Usar el método correcto para obtener LIDMappingStore
+        const lidMapping = session.signalRepository.getLIDMappingStore();
         console.log(`🔍 getJidFormats - lidMapping disponible, métodos:`, Object.getOwnPropertyNames(lidMapping));
         
         if (jid.endsWith('@s.whatsapp.net')) {

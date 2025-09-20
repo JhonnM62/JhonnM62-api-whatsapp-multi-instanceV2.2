@@ -41,19 +41,21 @@ async function debugLidMapping() {
     }
     
     console.log('✅ signalRepository disponible');
+    console.log('📋 Propiedades de signalRepository:', Object.keys(session.signalRepository));
     
-    // Verificar lidMapping
-    console.log('\n🗺️ Verificando lidMapping...');
-    if (!session.signalRepository.lidMapping) {
-        console.error('❌ lidMapping no está disponible');
+    // Verificar si getLIDMappingStore está disponible
+    if (typeof session.signalRepository.getLIDMappingStore !== 'function') {
+        console.error('❌ getLIDMappingStore no está disponible como función');
         console.log('📋 Propiedades de signalRepository:', Object.keys(session.signalRepository));
         return;
     }
     
-    console.log('✅ lidMapping disponible');
+    console.log('✅ getLIDMappingStore disponible');
+    
+    // Obtener LIDMappingStore usando el método correcto
+    const lidMapping = session.signalRepository.getLIDMappingStore();
     
     // Verificar métodos disponibles
-    const lidMapping = session.signalRepository.lidMapping;
     console.log('\n📋 Métodos disponibles en lidMapping:');
     console.log('- getLIDForPN:', typeof lidMapping.getLIDForPN);
     console.log('- getPNForLID:', typeof lidMapping.getPNForLID);

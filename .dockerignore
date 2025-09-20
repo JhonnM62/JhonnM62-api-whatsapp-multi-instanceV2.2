@@ -1,0 +1,110 @@
+# Archivos y directorios a excluir del contexto de Docker
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output/
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file (se debe configurar en producción)
+.env*
+!.env.example*
+
+# Stores
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.github/
+
+# Documentación
+README.md
+*.md
+docs/
+
+# Sesiones de WhatsApp (se crean en runtime)
+sessions/
+# store/ - COMENTADO porque contiene archivos necesarios como memory-store.js
+webhooks/
+
+# Archivos temporales
+temp/
+tmp/
+*.tmp
+
+# Backups
+*.backup
+*.bak
+
+# Postman collections
+*.postman_collection.json
+
+# Scripts locales
+# scripts/  ← COMENTADO porque contiene funciones necesarias para inicializar planes
+examples/
+
+# Testing
+test/
+tests/
+*.test.js
+*.spec.js
+
+# Build artifacts
+dist/
+build/
